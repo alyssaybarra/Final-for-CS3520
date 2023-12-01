@@ -1,6 +1,7 @@
 #include "geneML.h"
 using namespace mlpack;
 using namespace arma;
+namespace plt = matplotlibcpp;
 
 void readCSV(const std::string& filename, std::vector<int>& labels, std::vector<std::string>& geneData) {
     std::ifstream input(filename);
@@ -48,6 +49,19 @@ std::vector<std::vector<int>> processSequences(std::vector<std::string>& geneDat
     return encodedGenes;
 }
 
+void matrixToImage(const arma::Mat<size_t>& cM) {
+    plt::imshow(cM);
+
+    std::vector<std::string> classes = {"Not resistant", "Resistant"};
+
+    plt::xticks({0, 1}, classes);
+    plt::yticks({0, 1}, classes);
+    plt::xlabel("Predicted");
+    plt::ylabel("True");
+
+    plt::save("GeneConfusionMatrix.png");
+}
+
 void runClassifier(const std::string& filename) {
     std::vector<int> oldLabels;
     std::vector<std::string> geneData;
@@ -75,6 +89,8 @@ void runClassifier(const std::string& filename) {
     const size_t minimumLeafSize = 5;
     const size_t numTrees = 10;
 
+    RandomForest<GiniGain, RandomDimensionSelect> rf(trainX, trainY, numClasses, numTrees, minimumLeafSize);
+
     const size_t k = 10;
 
     KFoldCV<RandomForest<GiniGain, RandomDimensionSelect>, Accuracy> cv(k, trainX, trainY, numClasses);
@@ -82,4 +98,10 @@ void runClassifier(const std::string& filename) {
     double cvAcc = cv.Evaluate(numTrees, minimumLeafSize);
     std::cout << "\nKFoldCV Accuracy: " << cvAcc;
 
+    arma::Row<size_t> predictions;
+    rf.Classify(testX, predictions);
+
+    Mat<size_t> output;
+    data::ConfusionMatrix(testY, predictions, output, numClasses);
+    matrixToImage(output);
 }
