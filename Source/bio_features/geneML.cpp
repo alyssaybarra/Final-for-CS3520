@@ -1,7 +1,6 @@
 #include "geneML.h"
 using namespace mlpack;
 using namespace arma;
-namespace plt = matplotlibcpp;
 
 void readCSV(const std::string& filename, std::vector<int>& labels, std::vector<std::string>& geneData) {
     std::ifstream input(filename);
@@ -26,7 +25,7 @@ void readCSV(const std::string& filename, std::vector<int>& labels, std::vector<
         std::getline(lineStr, label, ',');
         std::getline(lineStr, sequence);
 
-        labels.push_back(std::stof(label));
+        labels.push_back(std::stoi(label));
         geneData.push_back(sequence);
     }
 }
@@ -49,18 +48,18 @@ std::vector<std::vector<int>> processSequences(std::vector<std::string>& geneDat
     return encodedGenes;
 }
 
-void matrixToImage(const arma::Mat<size_t>& cM) {
-    plt::imshow(cM);
-
-    std::vector<std::string> classes = {"Not resistant", "Resistant"};
-
-    plt::xticks({0, 1}, classes);
-    plt::yticks({0, 1}, classes);
-    plt::xlabel("Predicted");
-    plt::ylabel("True");
-
-    plt::save("GeneConfusionMatrix.png");
-}
+//void matrixToImage(const arma::Mat<size_t>& cM) {
+//    plt::imshow(cM);
+//
+//    std::vector<std::string> classes = {"Not resistant", "Resistant"};
+//
+//    plt::xticks({0, 1}, classes);
+//    plt::yticks({0, 1}, classes);
+//    plt::xlabel("Predicted");
+//    plt::ylabel("True");
+//
+//    plt::save("GeneConfusionMatrix.png");
+//}
 
 void runClassifier(const std::string& filename) {
     std::vector<int> oldLabels;
@@ -96,12 +95,13 @@ void runClassifier(const std::string& filename) {
     KFoldCV<RandomForest<GiniGain, RandomDimensionSelect>, Accuracy> cv(k, trainX, trainY, numClasses);
 
     double cvAcc = cv.Evaluate(numTrees, minimumLeafSize);
-    std::cout << "\nKFoldCV Accuracy: " << cvAcc;
+    std::cout << "\nKFoldCV Accuracy: " << cvAcc << std::endl;
 
     arma::Row<size_t> predictions;
     rf.Classify(testX, predictions);
 
     Mat<size_t> output;
     data::ConfusionMatrix(testY, predictions, output, numClasses);
-    matrixToImage(output);
+    std::cout << output << std::endl;
+    output.save("Source/bio_files/confusion_matrix.csv", csv_ascii);
 }
