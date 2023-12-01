@@ -1,9 +1,11 @@
 #include "geneML.h"
+using namespace mlpack;
+using namespace arma;
 
 void readCSV(const std::string& filename, std::vector<int>& labels, std::vector<std::string>& geneData) {
     std::ifstream input(filename);
     std::string line{};
-    if (!input.is_open()) {
+    if (!input) {
         std::cerr << "Error opening file: " << filename << std::endl;
         return;
     }
@@ -23,7 +25,7 @@ void readCSV(const std::string& filename, std::vector<int>& labels, std::vector<
         std::getline(lineStr, label, ',');
         std::getline(lineStr, sequence);
 
-        labels.push_back(std::stoi(label));
+        labels.push_back(std::stof(label));
         geneData.push_back(sequence);
     }
 }
@@ -32,7 +34,7 @@ std::vector<std::vector<int>> processSequences(std::vector<std::string>& geneDat
     std::unordered_map<char, int> charMap;
     std::vector<std::vector<int>> encodedGenes;
 
-    int i = 1;
+    double i = 1;
     for (std::string& sequence : geneData) {
         std::vector<int> encodedSequence;
         for (char c : sequence) {
@@ -46,12 +48,38 @@ std::vector<std::vector<int>> processSequences(std::vector<std::string>& geneDat
     return encodedGenes;
 }
 
-int main() {
-    std::vector<int> labels;
-    std::vector<std::string> data;
+void runClassifier(const std::string& filename) {
+    std::vector<int> oldLabels;
+    std::vector<std::string> geneData;
 
-    readCSV("antibiotic_gene_data.csv", labels, data);
-    std::vector<std::vector<int>> encoded = processSequences(data);
+    readCSV(filename, oldLabels, geneData);
+    std::vector<std::vector<int>> processedData = processSequences(geneData);
 
-    return 0;
+    const size_t rows = processedData.size();
+    const size_t cols = processedData[0].size();
+
+    arma::mat dataset(cols, rows);
+    for (size_t i = 0; i < processedData.size(); ++i) {
+        for (size_t j = 0; j < processedData[0].size(); ++j) {
+            dataset(j, i) = static_cast<double>(processedData[i][j]);
+        }
+    }
+
+    arma::Row<size_t> labels = arma::conv_to<arma::Row<size_t>>::from(oldLabels);
+
+    arma::mat trainX, testX;
+    arma::Row<size_t> trainY, testY;
+    data::Split(dataset, labels, trainX, testX, trainY, testY, 0.2);
+
+    const size_t numClasses = 2;
+    const size_t minimumLeafSize = 5;
+    const size_t numTrees = 10;
+
+    const size_t k = 10;
+
+    KFoldCV<RandomForest<GiniGain, RandomDimensionSelect>, Accuracy> cv(k, trainX, trainY, numClasses);
+
+    double cvAcc = cv.Evaluate(numTrees, minimumLeafSize);
+    std::cout << "\nKFoldCV Accuracy: " << cvAcc;
+
 }
