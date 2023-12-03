@@ -1,0 +1,4 @@
+10 K-fold cross validated accuracy: 0.877591
+Precision for testing set: 0.986381
+Recall for testing set: 0.801348
+F1 score for testing set: 0.884289
